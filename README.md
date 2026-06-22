@@ -13,7 +13,7 @@ Das Team vor Ort arbeitet dabei direkt mit der PUDIS-Anwendung.
 
 Ziel dieses Projekts ist es, einen **Python-basierten Client** zu entwickeln, der das Team bei diesen Aufgaben unterstützt.
 
-Der Client soll langfristig als **zentrale Arbeitsoberfläche bzw. technisches Hilfswerkzeug** dienen, damit wiederkehrende Aufgaben **nicht jedes Mal direkt manuell in PUDIS** durchgeführt werden müssen.
+Der Client soll langfristig als **zentrale Arbeitsoberfläche bzw. technisches Hilfswerkzeug** dienen, damit wiederkehrende Aufgaben **nicht jedes Mal direkt manuell in PUDIS** durchgeführt werden müssen.-!
 
 ### 🧩 Vereinfacht gesagt
 
