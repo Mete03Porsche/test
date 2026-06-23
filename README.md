@@ -1,41 +1,31 @@
-# 🚗 PUDIS Client – Projektdokumentation
 
-> ℹ️ **Zweck dieser Seite**  
-> Diese Seite beschreibt **die Projektidee**, **das Zielbild**, **die Voraussetzungen**, **das technische Grundprinzip** und **die empfohlene Projektstruktur** des PUDIS-Clients.  
-> Die Seite ist bewusst **allgemein gehalten** und **nicht** als Ablauf- oder Fortschrittsdokumentation gedacht.
+# 🚗 PUDIS / Checkmk Client
 
----
+## Worum geht es in diesem Projekt?
 
-## 🎯 1. Projektidee
+Dieses Projekt entwickelt eine kombinierte Lösung aus **Client** und **Skripten** für PUDIS bzw. Checkmk.
 
 An den Prüfständen werden über PUDIS **Fahrzeugprotokolle** für Fahrzeuge gezogen.  
-Das Team vor Ort arbeitet dabei direkt mit der PUDIS-Anwendung.
+Das Team vor Ort arbeitet dabei mit einer bestehenden Software und nutzt PUDIS im Hintergrund für bestimmte Funktionen.
 
-Ziel dieses Projekts ist es, einen **Python-basierten Client** zu entwickeln, der das Team bei diesen Aufgaben unterstützt.
+Ziel ist es, einen **Client** zu entwickeln, der das Prüfstandteam bei diesen Aufgaben unterstützt und bestimmte Abläufe vereinfacht.  
+Das Team soll später bestimmte Funktionen **nicht mehr direkt manuell in PUDIS**, sondern **über den Client** nutzen können.
 
-Der Client soll langfristig als **zentrale Arbeitsoberfläche bzw. technisches Hilfswerkzeug** dienen, damit wiederkehrende Aufgaben **nicht jedes Mal direkt manuell in PUDIS** durchgeführt werden müssen.-!
-
-### 🧩 Vereinfacht gesagt
-
-- **PUDIS** stellt Funktionen und Zustände bereit.
-- **Der Client** greift auf diese Funktionen zu.
-- **Das Team** soll später möglichst über den Client arbeiten können.
+Parallel dazu werden bestimmte Funktionen auch **scriptbasiert** umgesetzt.  
+Der Hintergrund ist, dass an den **PUDIS-Stationen bzw. über Checkmk** bestimmte Informationen oder Funktionen **nur scriptbasiert** bereitgestellt oder angezeigt werden können.
 
 ---
 
-## 🏁 2. Ziel des Projekts
+## Ziel des Projekts
 
-Der Client soll so aufgebaut werden, dass er **erweiterbar** ist und nach und nach weitere Aufgaben übernehmen kann.
+Das Projekt verfolgt zwei Richtungen:
 
-### ✅ Geplantes Zielbild
+### 1. Client-basiert für die Prüfstände
+Ein Client soll für das Prüfstandteam entwickelt werden, über den bestimmte Aufgaben rund um PUDIS vereinfacht und zentral ausgeführt werden können.
 
-Der Client soll künftig dabei helfen,
+### 2. Script-basiert für Checkmk / PUDIS-Stationen
+Zusätzlich sollen bestimmte Funktionen parallel scriptbasiert umgesetzt werden, damit Zustände oder Informationen über Checkmk bzw. an PUDIS-Stationen angezeigt oder verarbeitet werden können.
 
-- Zustände aus PUDIS abzufragen,
-- Änderungen live zu überwachen,
-- Arbeitsschritte für das Team zu vereinfachen,
-- wiederkehrende Aufgaben zu bündeln,
-- spätere Funktionen modular zu ergänzen.
 
 ### 🔍 Aktueller fachlicher Fokus
 
