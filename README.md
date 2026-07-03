@@ -5,13 +5,13 @@
 Dieses Projekt entwickelt eine kombinierte Lösung aus **Client** und **Skripten** für **PUDIS** bzw. **Checkmk**.
 
 An den Prüfständen werden über PUDIS **Fahrzeugprotokolle** für Fahrzeuge gezogen.  
-Das Team vor Ort arbeitet dabei mit einer bestehenden Software und nutzt PUDIS im Hintergrund für bestimmte Funktionen.
+Das Team vor Ort arbeitet dabei mit einer bestehenden Software um bestimmte Funktionen wie z.B die Status-Überwachung durchzuführen.
 
 Ziel ist es, einen **Client** zu entwickeln, der das Prüfstandteam bei diesen Aufgaben unterstützt und bestimmte Abläufe vereinfacht.  
-Das Team soll später bestimmte Funktionen **nicht mehr direkt manuell in PUDIS**, sondern **über den Client** nutzen können.
+Das Team soll später bestimmte Funktionen vereinfacht **über den Client** nutzen können.
 
 Parallel dazu werden bestimmte Funktionen auch **scriptbasiert** umgesetzt.  
-Der Hintergrund ist, dass an den **PUDIS-Stationen bzw. über Checkmk** bestimmte Informationen oder Funktionen **scriptbasiert** bereitgestellt oder angezeigt werden müssen.
+Der Hintergrund ist, dass **für Checkmk** bestimmte Informationen oder Funktionen **scriptbasiert** bereitgestellt oder angezeigt werden müssen.
 
 ---
 
@@ -51,87 +51,14 @@ oder:
 
 ---
 
-## Aktueller fachlicher Fokus
 
-Der aktuelle Fokus liegt auf:
-
-- **ApplicationStatus**
-- **ConnectionStatus**
-- **LoginStatus**
-
-Damit lässt sich bereits erkennen:
-
-- ob die PUDIS-Anwendung bereit ist,
-- ob gerade eine Prozedur bzw. ein Fahrzeugprotokoll läuft,
-- ob eine Verbindung besteht,
-- ob ein VCI erkannt wurde,
-- ob das System sich gerade prüft,
-- ob Checks abgeschlossen wurden,
-- ob beim Hochfahren Fehler aufgetreten sind,
-- ob ein Benutzer aktuell eingeloggt ist.
-
----
-
-## Aktueller technischer Stand
-
-Aktuell wurden zwei technische Richtungen vorbereitet:
-
-### Client für das Prüfstandteam
-
-Der Client liegt unter:
-
-```text
-src/pudis_client/
-```
-
-Der aktuelle Client kann:
-
-- eine Verbindung zur PUDIS-gRPC-Schnittstelle herstellen,
-- `GetApplicationStatus()` aufrufen,
-- `GetConnectionStatus()` aufrufen,
-- ApplicationStatus, ConnectionStatus und LoginStatus ausgeben,
-- Änderungen erkennen und nur bei Änderungen erneut ausgeben.
-
-Beispielausgabe:
-
-```text
-✅ Application ist bereit | 🔴 nicht verbunden | 🔐 Eingeloggt: A4013EM
-```
-
-oder:
-
-```text
-✅ Application ist bereit | 🔴 nicht verbunden | 🔒 Nicht eingeloggt
-```
-
-### Checkmk-Skript für Loginstatus
-
-Das Checkmk-Skript liegt unter:
-
-```text
-scripts/checkmk/check_pudis_login.py
-```
-
-Es prüft aktuell nur den Loginstatus.
-
-Die Logik ist:
-
-```text
-authenticated_user.name vorhanden
-→ Benutzer ist eingeloggt
-
-authenticated_user fehlt oder Name ist leer
-→ Benutzer ist nicht eingeloggt
-```
-
-Das Skript gibt eine Checkmk-konforme Statuszeile zurück und beendet sich danach.
-
----
 
 ## Fachlicher Hintergrund
 
 PUDIS stellt eine **gRPC-API** bereit.  
 Über diese API kann ein externer Client Informationen abfragen oder Zustandsänderungen beobachten.
+
+Beispiele:
 
 ### ApplicationStatus
 
@@ -162,7 +89,6 @@ Beispiele:
 
 - nicht verbunden
 - VCI erkannt
-- DoIP aktiv
 
 ---
 
@@ -374,58 +300,6 @@ pudis_login_check/
 
 ---
 
-## Checkmk-Skript: Loginstatus
-
-Das aktuelle Checkmk-Skript prüft nur, ob ein Benutzer eingeloggt ist.
-
-### Logik
-
-```text
-authenticated_user.name vorhanden
-→ Eingeloggt
-
-authenticated_user fehlt oder leer
-→ Nicht eingeloggt
-```
-
-### Beispielausgaben
-
-Wenn ein Benutzer eingeloggt ist:
-
-```text
-0 "PUDIS Login Status" - Eingeloggt: A4013EM
-```
-
-Wenn kein Benutzer eingeloggt ist:
-
-```text
-2 "PUDIS Login Status" - Nicht eingeloggt
-```
-
-Wenn PUDIS nicht erreichbar ist:
-
-```text
-2 "PUDIS Login Status" - PUDIS nicht erreichbar: UNAVAILABLE
-```
-
-Wenn ein unerwarteter Fehler im Skript auftritt:
-
-```text
-3 "PUDIS Login Status" - Unbekannter Fehler: ...
-```
-
-### Checkmk-Statuscodes
-
-```text
-0 = OK
-1 = WARN
-2 = CRIT
-3 = UNKNOWN
-```
-
-Der Bindestrich `-` bedeutet, dass keine Metriken ausgegeben werden.
-
----
 
 ## Unterschied zwischen Client und Checkmk-Skript
 
