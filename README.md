@@ -11,7 +11,7 @@ Ziel ist es, einen **Client** zu entwickeln, der das Prüfstandteam bei diesen A
 Das Team soll später bestimmte Funktionen **nicht mehr direkt manuell in PUDIS**, sondern **über den Client** nutzen können.
 
 Parallel dazu werden bestimmte Funktionen auch **scriptbasiert** umgesetzt.  
-Der Hintergrund ist, dass an den **PUDIS-Stationen bzw. über Checkmk** bestimmte Informationen oder Funktionen **nur scriptbasiert** bereitgestellt oder angezeigt werden können.
+Der Hintergrund ist, dass an den **PUDIS-Stationen bzw. über Checkmk** bestimmte Informationen oder Funktionen **scriptbasiert** bereitgestellt oder angezeigt werden müssen.
 
 ---
 
@@ -20,43 +20,111 @@ Der Hintergrund ist, dass an den **PUDIS-Stationen bzw. über Checkmk** bestimmt
 Das Projekt verfolgt zwei Richtungen:
 
 ### 1. Client-basiert für die Prüfstände
+
 Ein Client soll für das Prüfstandteam entwickelt werden, über den bestimmte Aufgaben rund um PUDIS vereinfacht und zentral ausgeführt werden können.
 
+Der Client ist für Benutzer gedacht und kann später z. B.:
+
+- Zustände verständlich anzeigen
+- Abläufe überwachen
+- Funktionen bündeln
+- mehrere PUDIS-Services verwenden
+- Workflows für das Prüfstandteam vereinfachen
+
 ### 2. Script-basiert für Checkmk / PUDIS-Stationen
-Zusätzlich sollen bestimmte Funktionen parallel scriptbasiert umgesetzt werden, damit Zustände oder Informationen über Checkmk bzw. an PUDIS-Stationen angezeigt oder verarbeitet werden können.
+
+Zusätzlich sollen bestimmte Funktionen parallel scriptbasiert umgesetzt werden.
+
+Diese Skripte sollen vom Checkmk-Agenten bzw. auf PUDIS-Stationen ausgeführt werden und eine Checkmk-kompatible Ausgabe liefern.
+
+Beispiel:
+
+```text
+0 "PUDIS Login Status" - Eingeloggt: A4013EM
+```
+
+oder:
+
+```text
+2 "PUDIS Login Status" - Nicht eingeloggt
+```
 
 ---
 
 ## Aktueller fachlicher Fokus
 
-Der erste sinnvolle Baustein ist die Überwachung von:
+Der aktuelle Fokus liegt auf:
 
 - **ApplicationStatus**
 - **ConnectionStatus**
+- **LoginStatus**
 
-Damit lässt sich bereits erkennen,
+Damit lässt sich bereits erkennen:
 
-- ob die Anwendung bereit ist,
-- ob gerade eine Prozedur läuft,
+- ob die PUDIS-Anwendung bereit ist,
+- ob gerade eine Prozedur bzw. ein Fahrzeugprotokoll läuft,
 - ob eine Verbindung besteht,
 - ob ein VCI erkannt wurde,
 - ob das System sich gerade prüft,
 - ob Checks abgeschlossen wurden,
-- ob beim Hochfahren Fehler aufgetreten sind.
+- ob beim Hochfahren Fehler aufgetreten sind,
+- ob ein Benutzer aktuell eingeloggt ist.
 
 ---
 
-## Perspektivisch mögliche Erweiterungen
+## Aktueller technischer Stand
 
-Je nach Abstimmung mit dem Team kann das Projekt später zusätzlich erweitert werden um:
+Aktuell wurden zwei technische Richtungen vorbereitet:
 
-- Authentifizierung
-- Überwachung oder Steuerung von Prozeduren
-- Nutzung weiterer PUDIS-Services
-- Logging / Nachverfolgung
-- Konfigurierbarkeit
-- Checkmk-spezifische Skripte
-- zusätzliche Automatisierungslogik
+### Client für das Prüfstandteam
+
+Der Client liegt unter:
+
+```text
+src/pudis_client/
+```
+
+Der aktuelle Client kann:
+
+- eine Verbindung zur PUDIS-gRPC-Schnittstelle herstellen,
+- `GetApplicationStatus()` aufrufen,
+- `GetConnectionStatus()` aufrufen,
+- ApplicationStatus, ConnectionStatus und LoginStatus ausgeben,
+- Änderungen erkennen und nur bei Änderungen erneut ausgeben.
+
+Beispielausgabe:
+
+```text
+✅ Application ist bereit | 🔴 nicht verbunden | 🔐 Eingeloggt: A4013EM
+```
+
+oder:
+
+```text
+✅ Application ist bereit | 🔴 nicht verbunden | 🔒 Nicht eingeloggt
+```
+
+### Checkmk-Skript für Loginstatus
+
+Das Checkmk-Skript liegt unter:
+
+```text
+scripts/checkmk/check_pudis_login.py
+```
+
+Es prüft aktuell nur den Loginstatus.
+
+Die Logik ist:
+
+```text
+authenticated_user.name vorhanden
+→ Benutzer ist eingeloggt
+
+authenticated_user fehlt oder Name ist leer
+→ Benutzer ist nicht eingeloggt
+```
+
+Das Skript gibt eine Checkmk-konforme Statuszeile zurück und beendet sich danach.
 
 ---
 
@@ -65,26 +133,36 @@ Je nach Abstimmung mit dem Team kann das Projekt später zusätzlich erweitert w
 PUDIS stellt eine **gRPC-API** bereit.  
 Über diese API kann ein externer Client Informationen abfragen oder Zustandsänderungen beobachten.
 
-### Beispiele für relevante Informationen
+### ApplicationStatus
 
-#### ApplicationStatus
-Zeigt den Zustand der Anwendung, z. B.:
+Der ApplicationStatus beschreibt den Zustand der PUDIS-Anwendung.
+
+Beispiele:
 
 - System prüft sich
 - Checks abgeschlossen
-- bereit
+- Application ist bereit
 - Prozedur läuft
-- Check fehlgeschlagen
+- Fehler im System
 
-#### ConnectionStatus
-Zeigt den Zustand der Verbindung, z. B.:
+Zusätzlich enthält der ApplicationStatus Informationen zum aktuell authentifizierten Benutzer:
+
+```proto
+User authenticated_user = 5;
+LastLoginAttempt last_login_attempt = 6;
+```
+
+Diese Felder werden für die Loginprüfung verwendet.
+
+### ConnectionStatus
+
+Der ConnectionStatus beschreibt den Zustand der Verbindung.
+
+Beispiele:
 
 - nicht verbunden
 - VCI erkannt
 - DoIP aktiv
-
-Die Schnittstelle wird über **`.proto`-Dateien** beschrieben.  
-Aus diesen Dateien wird der Python-Code erzeugt, der für die gRPC-Kommunikation benötigt wird.
 
 ---
 
@@ -95,135 +173,49 @@ Aus diesen Dateien wird der Python-Code erzeugt, der für die gRPC-Kommunikation
 - **PUDIS = Server / API-Anbieter**
 - **Client = Benutzernahe Lösung für das Prüfstandteam**
 - **Skripte = Technische Lösung für Checkmk / PUDIS-Stationen**
+- **Checkmk-Agent = führt das Skript auf der Zielstation aus**
 
-### Rolle der `.proto`-Dateien
+---
 
-Die `.proto`-Dateien definieren:
+## Rolle der `.proto`-Dateien
+
+Die `.proto`-Dateien definieren die gRPC-Schnittstelle.
+
+Darin steht:
 
 - welche Services verfügbar sind,
 - welche Methoden aufgerufen werden können,
-- welche Datenstrukturen und Zustände es gibt.
+- welche Datenstrukturen und Zustände existieren.
 
 Beispiele:
 
-- `ApplicationStatusService`
-- `GetApplicationStatus`
-- `WatchApplicationStatus`
-- `GetConnectionStatus`
-- `WatchConnectionStatus`
+```text
+ApplicationStatusService
+GetApplicationStatus
+WatchApplicationStatus
+GetConnectionStatus
+WatchConnectionStatus
+```
 
-### Generierter Code
+Aus den `.proto`-Dateien werden Python-Dateien generiert:
 
-Aus den `.proto`-Dateien werden Python-Dateien erzeugt:
-
-- `*_pb2.py`
-- `*_pb2_grpc.py`
+```text
+application_status_pb2.py
+application_status_pb2_grpc.py
+```
 
 Diese Dateien sind **generierter Code** und werden **nicht manuell angepasst**.
 
-### Logischer Aufbau des Projekts
+Wichtig:
 
-Das Projekt lässt sich in mehrere Ebenen unterteilen:
-
-1. **Proto-Ebene** → beschreibt die API  
-2. **Generated Code** → technische Python-Schnittstelle  
-3. **Client-Schicht** → direkte Kommunikation mit PUDIS  
-4. **Service-Schicht** → fachliche Logik für den Client  
-5. **Script-Schicht** → scriptbasierte Funktionen für Checkmk / PUDIS-Stationen  
-6. **Startpunkt / Main** → Ausführung des Clients oder der Skripte  
+Die `.proto`-Datei wird nur für die Entwicklung bzw. Generierung benötigt.  
+Der Checkmk-Agent benötigt zur Laufzeit nicht die `.proto`-Datei, sondern nur die generierten Python-Dateien.
 
 ---
 
-## Voraussetzungen
+## Projektstruktur
 
-Damit ein neuer Praktikant oder Entwickler das Projekt lokal einrichten und ausführen kann, werden folgende Voraussetzungen benötigt.
-
-### Software
-
-- **Python 3.11 oder 3.12**
-- **pip**
-- **Visual Studio** oder **VS Code**
-- Zugriff auf die **PUDIS-Anwendung**
-- Zugriff auf die **aktuellen `.proto`-Dateien**
-- falls relevant: Zugriff auf **Checkmk** bzw. die benötigte Umgebung
-
-### Benötigte Python-Bibliotheken
-
-Aktuell werden mindestens folgende Bibliotheken benötigt:
-
-- `grpcio`
-- `grpcio-tools`
-- `protobuf`
-
-### Installation der Bibliotheken
-
-```bash
-python -m pip install grpcio grpcio-tools protobuf
-```
-
-### Laufzeitvoraussetzungen
-
-Vor dem Start muss bekannt sein:
-
-- auf welcher Adresse der gRPC-Server läuft,
-- welcher Port verwendet wird.
-
-Aktuell bekannt:
-
-- **Host:** `localhost`
-- **Port:** `5050`
-
-### Wichtiger Hinweis
-
-PUDIS muss laufen, damit sich der Client verbinden kann.  
-Wenn PUDIS geschlossen ist, ist der gRPC-Server nicht erreichbar.
-
----
-
-## Einrichtung für neue Praktikanten / Entwickler
-
-### 1. Projekt lokal bereitstellen
-Repository bzw. Projektordner lokal öffnen.
-
-### 2. Python installieren
-Empfohlen: Python 3.11 oder 3.12
-
-### 3. Python-Abhängigkeiten installieren
-
-```bash
-python -m pip install grpcio grpcio-tools protobuf
-```
-
-oder – falls vorhanden – über eine `requirements.txt`:
-
-```bash
-python -m pip install -r requirements.txt
-```
-
-### 4. `.proto`-Dateien prüfen
-Sicherstellen, dass die aktuellen und richtigen `.proto`-Dateien vorhanden sind.
-
-### 5. gRPC-Code generieren
-Beispiel für `application_status.proto`:
-
-```bash
-python -m grpc_tools.protoc -I./protos --python_out=./generated --grpc_python_out=./generated ./protos/application_status.proto
-```
-
-### 6. PUDIS starten
-Ohne laufende PUDIS-Anwendung kann der Client nicht funktionieren.
-
-### 7. Konfiguration prüfen
-Host und Port kontrollieren.
-
-### 8. Client oder Skripte starten
-Je nach Anwendungsfall wird entweder der Client oder ein scriptbasierter Aufruf verwendet.
-
----
-
-## Empfohlene Projektstruktur
-
-Damit das Projekt sowohl für den Client als auch für scriptbasierte Funktionen wachsen kann, sollte es modular aufgebaut werden.
+Die aktuelle Projektstruktur ist so aufgebaut, dass Client- und Skriptlogik getrennt sind.
 
 ```text
 pudis-client/
@@ -233,29 +225,39 @@ pudis-client/
 ├─ .gitignore
 │
 ├─ protos/
-│   ├─ application_status.proto
-│   ├─ authentication.proto
-│   ├─ procedure_control.proto
-│   └─ data_distributions.proto
+│   └─ application_status.proto
 │
 ├─ generated/
 │   ├─ application_status_pb2.py
-│   ├─ application_status_pb2_grpc.py
-│   └─ ...
+│   └─ application_status_pb2_grpc.py
 │
 ├─ src/
-│   ├─ main.py
-│   ├─ config.py
-│   │
-│   ├─ clients/
-│   ├─ services/
-│   ├─ mappers/
-│   └─ utils/
+│   └─ pudis_client/
+│       ├─ main.py
+│       ├─ config.py
+│       │
+│       ├─ clients/
+│       │   └─ application_status_client.py
+│       │
+│       ├─ services/
+│       │   └─ status_monitor_service.py
+│       │
+│       └─ mappers/
+│           └─ status_mapper.py
 │
 ├─ scripts/
 │   ├─ checkmk/
-│   ├─ pudis_station/
-│   └─ common/
+│   │   └─ check_pudis_login.py
+│   │
+│   └─ pudis_station/
+│
+├─ deployment/
+│   └─ checkmk_agent/
+│       └─ pudis_login_check/
+│           ├─ check_pudis_login.py
+│           └─ lib/
+│               ├─ application_status_pb2.py
+│               └─ application_status_pb2_grpc.py
 │
 ├─ tests/
 └─ docs/
@@ -263,50 +265,301 @@ pudis-client/
 
 ---
 
-## Erklärung der Struktur
-
-### `src/`
-Enthält den **client-basierten Python-Code** für das Prüfstandteam.
-
-### `scripts/`
-Enthält **scriptbasierte Lösungen** für Checkmk bzw. PUDIS-Stationen.
+## Erklärung der wichtigsten Ordner
 
 ### `protos/`
-Enthält die originalen `.proto`-Dateien.
+
+Hier liegen die originalen `.proto`-Dateien.
+
+Diese Dateien beschreiben die API und dienen als Grundlage für die Generierung des Python-gRPC-Codes.
+
+Beispiel:
+
+```text
+protos/application_status.proto
+```
+
+---
 
 ### `generated/`
-Enthält den automatisch generierten Python-Code aus den `.proto`-Dateien.
 
-### `tests/`
-Testfälle und ggf. spätere automatisierte Tests.
+Hier liegen die automatisch generierten Python-Dateien.
 
-### `docs/`
-Dokumentation und technische Notizen.
+Beispiel:
+
+```text
+generated/application_status_pb2.py
+generated/application_status_pb2_grpc.py
+```
+
+Diese Dateien werden nicht manuell bearbeitet.
+
+Wenn sich die `.proto` ändert, müssen diese Dateien neu generiert werden.
+
+---
+
+### `src/pudis_client/`
+
+Hier liegt der clientbasierte Teil für das Prüfstandteam.
+
+Dieser Teil ist für eine spätere benutzernahe Anwendung gedacht.
+
+#### `main.py`
+
+Startpunkt des Clients.
+
+#### `clients/`
+
+Technische Kommunikation mit der PUDIS-gRPC-API.
+
+#### `services/`
+
+Fachliche Logik, z. B.:
+
+- Status überwachen
+- Änderungen erkennen
+- Ausgaben erzeugen
+
+#### `mappers/`
+
+Übersetzung technischer Werte in verständliche Texte.
+
+Beispiel:
+
+```text
+READY → Application ist bereit
+VCI_DETECTED → VCI erkannt
+```
+
+---
+
+### `scripts/checkmk/`
+
+Hier liegen Skripte für Checkmk.
+
+Diese Skripte laufen nicht dauerhaft, sondern werden vom Checkmk-Agenten ausgeführt.
+
+Ein Skript soll:
+
+1. einmal laufen,
+2. PUDIS abfragen,
+3. eine Checkmk-konforme Zeile ausgeben,
+4. sich beenden.
+
+---
+
+### `deployment/checkmk_agent/`
+
+Hier liegt ein isoliertes Paket für den Checkmk-Agenten.
+
+Dieses Paket ist dafür gedacht, an das Team bzw. an den Agenten weitergegeben zu werden.
+
+Der Agent benötigt nicht die vollständige Projektstruktur, sondern nur:
+
+```text
+check_pudis_login.py
+application_status_pb2.py
+application_status_pb2_grpc.py
+```
+
+Empfohlene Struktur:
+
+```text
+pudis_login_check/
+├─ check_pudis_login.py
+└─ lib/
+   ├─ application_status_pb2.py
+   └─ application_status_pb2_grpc.py
+```
+
+---
+
+## Checkmk-Skript: Loginstatus
+
+Das aktuelle Checkmk-Skript prüft nur, ob ein Benutzer eingeloggt ist.
+
+### Logik
+
+```text
+authenticated_user.name vorhanden
+→ Eingeloggt
+
+authenticated_user fehlt oder leer
+→ Nicht eingeloggt
+```
+
+### Beispielausgaben
+
+Wenn ein Benutzer eingeloggt ist:
+
+```text
+0 "PUDIS Login Status" - Eingeloggt: A4013EM
+```
+
+Wenn kein Benutzer eingeloggt ist:
+
+```text
+2 "PUDIS Login Status" - Nicht eingeloggt
+```
+
+Wenn PUDIS nicht erreichbar ist:
+
+```text
+2 "PUDIS Login Status" - PUDIS nicht erreichbar: UNAVAILABLE
+```
+
+Wenn ein unerwarteter Fehler im Skript auftritt:
+
+```text
+3 "PUDIS Login Status" - Unbekannter Fehler: ...
+```
+
+### Checkmk-Statuscodes
+
+```text
+0 = OK
+1 = WARN
+2 = CRIT
+3 = UNKNOWN
+```
+
+Der Bindestrich `-` bedeutet, dass keine Metriken ausgegeben werden.
+
+---
+
+## Unterschied zwischen Client und Checkmk-Skript
+
+### Client
+
+Der Client ist für das Prüfstandteam gedacht.
+
+Eigenschaften:
+
+- läuft dauerhaft,
+- zeigt Statusänderungen lesbar an,
+- ist benutzerorientiert,
+- kann später mehrere Funktionen bündeln,
+- kann erweitert werden.
+
+Beispiel:
+
+```text
+src/pudis_client/main.py
+```
+
+### Checkmk-Skript
+
+Das Skript ist für Checkmk bzw. den Agenten gedacht.
+
+Eigenschaften:
+
+- läuft einmal,
+- gibt eine Statuszeile zurück,
+- beendet sich direkt,
+- ist monitoringorientiert,
+- ist nicht für direkte Bedienung durch Benutzer gedacht.
+
+Beispiel:
+
+```text
+scripts/checkmk/check_pudis_login.py
+```
+
+---
+
+## Voraussetzungen
+
+Damit das Projekt lokal entwickelt und getestet werden kann, werden folgende Voraussetzungen benötigt:
+
+- Python 3.11 oder 3.12
+- pip
+- Visual Studio oder VS Code
+- Zugriff auf PUDIS
+- Zugriff auf die aktuellen `.proto`-Dateien
+
+Benötigte Python-Bibliotheken für Entwicklung:
+
+```text
+grpcio
+grpcio-tools
+protobuf
+```
+
+Installation:
+
+```bash
+python -m pip install grpcio grpcio-tools protobuf
+```
+
+Für den Checkmk-Agenten werden zur Laufzeit nur benötigt:
+
+```text
+grpcio
+protobuf
+```
+
+`grpcio-tools` wird nur zur Generierung der gRPC-Dateien benötigt.
+
+---
+
+## gRPC-Code generieren
+
+Wenn sich die `.proto`-Datei ändert, muss der generierte Python-Code neu erstellt werden.
+
+Befehl im Projekt-Hauptordner:
+
+```bash
+python -m grpc_tools.protoc -I./protos --python_out=./generated --grpc_python_out=./generated ./protos/application_status.proto
+```
+
+Danach werden aktualisiert:
+
+```text
+generated/application_status_pb2.py
+generated/application_status_pb2_grpc.py
+```
+
+Nach der Generierung sollte geprüft werden, ob das benötigte Feld vorhanden ist:
+
+```text
+authenticated_user
+```
+
+---
+
+## Deployment für Checkmk-Agent
+
+Für den Checkmk-Agenten wird ein isoliertes Paket erstellt.
+
+Beispiel:
+
+```text
+deployment/checkmk_agent/pudis_login_check/
+├─ check_pudis_login.py
+└─ lib/
+   ├─ application_status_pb2.py
+   └─ application_status_pb2_grpc.py
+```
+
+Die `.proto`-Datei wird nicht mitgegeben, da sie nur zur Codegenerierung benötigt wird.
+
+Wichtig:
+
+Nur `check_pudis_login.py` soll vom Agenten ausgeführt werden.  
+Die Dateien im `lib/`-Ordner werden nur importiert.
 
 ---
 
 ## Wichtige Hinweise
 
-- Wenn PUDIS geschlossen ist, ist der Server nicht erreichbar.
-- Streams können denselben Zustand mehrfach senden.
-- Solche Zustände sollten im Client dedupliziert werden.
-- Wenn eine Methode im generierten Python-Code fehlt, passt meist die `.proto`-Datei nicht zum generierten Stand.
-- Änderungen an `.proto`-Dateien erfordern eine erneute Generierung des Python-Codes.
-- Für Checkmk-spezifische Anforderungen können zusätzliche scriptbasierte Lösungen notwendig sein.
+- Wenn PUDIS geschlossen ist, ist der gRPC-Server nicht erreichbar.
+- Wenn eine Methode oder ein Feld im Python-Code fehlt, ist meist der generierte Code veraltet.
+- Nach Änderungen an `.proto`-Dateien muss der Code erneut generiert werden.
+- Die generierten `pb2`-Dateien dürfen nicht manuell bearbeitet werden.
+- Der Checkmk-Agent benötigt nicht die gesamte Projektstruktur.
+- Für den Agenten sollte ein isoliertes Deployment-Paket verwendet werden.
 
 ---
-
-## Offene Punkte
-
-Da die finalen Anforderungen noch mit dem Team abgestimmt werden, bleiben aktuell noch Fragen offen.
-
-Beispiele:
-
-- Welche Aufgaben soll der Client final vollständig für das Prüfstandteam unterstützen?
-- Welche Funktionen sollen parallel scriptbasiert für Checkmk bereitgestellt werden?
-- Welche weiteren Services sollen angebunden werden?
-- Soll der Client später nur Informationen anzeigen oder auch Aktionen starten?
-- Welche Teile gehören fachlich in den Client und welche in die Skript-Schicht?
 
 ---
 
@@ -314,10 +567,15 @@ Beispiele:
 
 Das Projekt verfolgt zwei Ziele:
 
-1. **Einen Client für das Prüfstandteam aufbauen**, der bestimmte Aufgaben rund um PUDIS vereinfacht.  
-2. **Parallele scriptbasierte Funktionen bereitstellen**, damit Informationen oder Zustände auch über Checkmk bzw. PUDIS-Stationen genutzt werden können.
+1. **Einen Client für das Prüfstandteam aufbauen**, der bestimmte Aufgaben rund um PUDIS vereinfacht.
+2. **Parallele scriptbasierte Funktionen bereitstellen**, damit Informationen oder Zustände über Checkmk bzw. PUDIS-Stationen genutzt werden können.
+
+Aktuell wurde als erster Checkmk-Use-Case der **Loginstatus** umgesetzt.
+
+Der Client zeigt den Status für Benutzer verständlich an.  
+Das Checkmk-Skript liefert dagegen eine kompakte Statuszeile für den Agenten.
 
 Damit entsteht eine kombinierte Lösung aus:
 
-- **benutzernahem Client für das Team**
-- **technischen Skripten für Checkmk / PUDIS-Stationen**
+- benutzernahem Client für das Prüfstandteam
+- technischen Skripten für Checkmk / PUDIS-Stationen
