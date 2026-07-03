@@ -444,10 +444,6 @@ Das Projekt verfolgt zwei Ziele:
 1. **Einen Client für das Prüfstandteam aufbauen**, der bestimmte Aufgaben rund um PUDIS vereinfacht.
 2. **Parallele scriptbasierte Funktionen bereitstellen**, damit Informationen oder Zustände über Checkmk bzw. PUDIS-Stationen genutzt werden können.
 
-Aktuell wurde als erster Checkmk-Use-Case der **Loginstatus** umgesetzt.
-
-Der Client zeigt den Status für Benutzer verständlich an.  
-Das Checkmk-Skript liefert dagegen eine kompakte Statuszeile für den Agenten.
 
 Damit entsteht eine kombinierte Lösung aus:
 
